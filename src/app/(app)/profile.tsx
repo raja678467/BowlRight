@@ -9,6 +9,7 @@ import {
   Platform,
   Switch,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as Haptics from 'expo-haptics';
 import { API_URL } from '../../config';
 
 export default function ProfileScreen() {
@@ -33,11 +35,16 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   const [supportedTypes, setSupportedTypes] = useState<string[]>([]);
+  const [isEnrolled, setIsEnrolled] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
 
   useEffect(() => {
     (async () => {
       const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      setIsEnrolled(enrolled);
+      
       const typeStrings = types.map(type => {
         if (type === LocalAuthentication.AuthenticationType.FINGERPRINT) return 'Fingerprint';
         if (type === LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION) return 'Face ID';
@@ -87,35 +94,38 @@ export default function ProfileScreen() {
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.profileSection}>
-            <View style={styles.avatarContainer}>
-              {user?.profile_image ? (
-                <Image 
-                  source={{ uri: user.profile_image.startsWith('http') ? user.profile_image : `${API_URL}${user.profile_image}` }} 
-                  style={styles.avatar} 
-                />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Ionicons name="person" color="#38bdf8" size={48} />
-                </View>
-              )}
-              <TouchableOpacity
-                style={styles.changePictureButton}
-                onPress={pickImage}
-                disabled={isUpdating}
+              <TouchableOpacity 
+                activeOpacity={0.9} 
+                onPress={() => user?.profile_image && setShowImageModal(true)}
               >
-                {isUpdating ? (
-                  <ActivityIndicator color="white" size="small" />
+                {user?.profile_image ? (
+                  <Image 
+                    source={{ uri: user.profile_image.startsWith('http') ? user.profile_image : `${API_URL}${user.profile_image}` }} 
+                    style={styles.avatar} 
+                  />
                 ) : (
-                  <Ionicons name="camera-outline" color="white" size={18} />
+                  <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="person" color="#38bdf8" size={48} />
+                  </View>
                 )}
               </TouchableOpacity>
-            </View>
 
             <Text style={styles.userName}>{user?.full_name || 'Explorer'}</Text>
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" color="#38bdf8" size={14} />
-              <Text style={styles.verifiedText}>Verified Account</Text>
-            </View>
+            
+            <TouchableOpacity 
+              style={styles.updatePicturePill} 
+              onPress={pickImage}
+              disabled={isUpdating}
+            >
+              {isUpdating ? (
+                <ActivityIndicator color="#38bdf8" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="camera" color="#38bdf8" size={14} />
+                  <Text style={styles.updatePictureText}>Change Photo</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.infoSection}>
@@ -160,13 +170,22 @@ export default function ProfileScreen() {
                   <View>
                     <Text style={styles.infoLabel}>Biometric Security</Text>
                     <Text style={styles.infoValue}>
-                      {supportedTypes.length > 0 ? supportedTypes.join(' & ') : 'Not Supported'}
+                      {supportedTypes.length > 0 ? (
+                        isEnrolled ? supportedTypes.join(' & ') : 'Not Set Up'
+                      ) : 'Not Supported'}
                     </Text>
                   </View>
                 </View>
                 <Switch
                   value={biometricsEnabled}
-                  onValueChange={setBiometricsEnabled}
+                  onValueChange={async (val) => {
+                    if (val && !isEnrolled) {
+                      alert('Please set up biometrics in your device settings first.');
+                      return;
+                    }
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                    setBiometricsEnabled(val);
+                  }}
                   trackColor={{ false: '#334155', true: '#0ea5e9' }}
                   thumbColor={biometricsEnabled ? '#f8fafc' : '#94a3b8'}
                 />
@@ -185,9 +204,38 @@ export default function ProfileScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      <FullImageModal 
+        visible={showImageModal} 
+        imageUri={user?.profile_image ? (user.profile_image.startsWith('http') ? user.profile_image : `${API_URL}${user.profile_image}`) : ''} 
+        onClose={() => setShowImageModal(false)} 
+      />
     </View>
   );
 }
+
+const FullImageModal = ({ visible, imageUri, onClose }: { visible: boolean; imageUri: string; onClose: () => void }) => (
+  <Modal
+    visible={visible}
+    transparent={true}
+    animationType="fade"
+    onRequestClose={onClose}
+  >
+    <View style={styles.modalBackground}>
+      <BlurView intensity={100} tint="dark" style={StyleSheet.absoluteFill} />
+      <SafeAreaView style={styles.modalContent}>
+        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <Ionicons name="close" color="white" size={32} />
+        </TouchableOpacity>
+        <Image 
+          source={{ uri: imageUri }} 
+          style={styles.fullImage} 
+          resizeMode="contain" 
+        />
+      </SafeAreaView>
+    </View>
+  </Modal>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -219,6 +267,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 24,
+    paddingBottom: 120, // Padding for blurred tab bar
   },
   profileSection: {
     alignItems: 'center',
@@ -252,26 +301,25 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#1e293b',
   },
   userName: {
-    color: '#f8fafc',
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
+    color: '#f8fafc',
     marginBottom: 8,
   },
-  verifiedBadge: {
+  updatePicturePill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(56, 189, 248, 0.1)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.2)',
     gap: 6,
   },
-  verifiedText: {
+  updatePictureText: {
     color: '#38bdf8',
     fontSize: 12,
     fontWeight: '700',
@@ -353,5 +401,30 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     color: '#f43f5e',
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  },
+  modalContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullImage: {
+    width: '100%',
+    height: '80%',
   },
 });

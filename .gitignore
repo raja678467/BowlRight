@@ -41,3 +41,17 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Environment files
+.env
+.env.*
+!*.example
+
+# Databases
+*.db
+*.db-shm
+*.db-wal
+
+# Python cache
+__pycache__/
+*.pyc

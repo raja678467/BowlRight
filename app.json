@@ -1,23 +1,22 @@
 {
   "expo": {
-    "name": "nw",
+    "name": "BowlRight",
     "slug": "nw",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "nw",
+    "icon": "./assets/images/logo-glow.png",
+    "scheme": "bowlright",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.nw.app"
+      "icon": "./assets/images/logo-glow.png",
+      "bundleIdentifier": "com.bowlright.app"
     },
     "android": {
-      "package": "com.nw.app",
+      "package": "com.bowlright.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#0f172a",
+        "foregroundImage": "./assets/images/logo-glow.png",
+        "monochromeImage": "./assets/images/logo-glow.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -30,10 +29,15 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#0f172a",
+          "image": "./assets/images/logo-glow.png",
+          "imageWidth": 600,
           "android": {
-            "image": "./assets/images/splash-icon.png",
-            "imageWidth": 76
+            "image": "./assets/images/logo-glow.png",
+            "imageWidth": 600
+          },
+          "ios": {
+            "image": "./assets/images/logo-glow.png"
           }
         }
       ],
@@ -46,9 +50,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "2125001a-90f6-4ff3-8158-2f42cde29efd"
+        "projectId": "2349e485-0354-4ae1-a13a-3a8482803619"
       }
     },
-    "owner": "rajaz678"
+    "owner": "rajas12345"
   }
 }

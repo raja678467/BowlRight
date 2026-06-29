@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
@@ -16,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSession } from '../context/auth';
 import { StatusBar } from 'expo-status-bar';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as Haptics from 'expo-haptics';
 import { API_URL } from '../config';
 
 export default function LoginScreen() {
@@ -29,8 +31,9 @@ export default function LoginScreen() {
 
   useEffect(() => {
     (async () => {
-      const compatible = await LocalAuthentication.hasHardwareAsync();
-      setIsBiometricSupported(compatible);
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      setIsBiometricSupported(hasHardware && isEnrolled);
     })();
   }, []);
 
@@ -38,6 +41,9 @@ export default function LoginScreen() {
     try {
       setIsLoading(true);
       await loginWithBiometrics();
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
       router.replace('/(app)');
     } catch (error: any) {
       if (error.message !== 'User cancelled') {
@@ -76,9 +82,11 @@ export default function LoginScreen() {
       const data = await response.json();
 
       if (response.ok) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         await signIn(data.access_token, data.user);
         router.replace('/(app)');
       } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
         alert(data.detail || 'Login failed. Please check your credentials.');
       }
     } catch (error) {
@@ -104,12 +112,11 @@ export default function LoginScreen() {
         >
           <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <LinearGradient
-                colors={['#38bdf8', '#818cf8']}
-                style={styles.logoGradient}
-              >
-                <Ionicons name="lock-closed" color="white" size={32} />
-              </LinearGradient>
+              <Image 
+                source={require('../../assets/images/logo-glow.png')} 
+                style={styles.logoImage} 
+                resizeMode="cover"
+              />
             </View>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Enter your details to access your account</Text>
@@ -138,6 +145,8 @@ export default function LoginScreen() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                textContentType="password"
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
@@ -258,6 +267,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   title: {
     fontSize: 32,
